@@ -5,8 +5,8 @@
 
 # Default settings
 MODEL_PATH="deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
-DATA_ROOT="../../data/"
-OUTPUT_DIR="math500/results/"
+DATA_ROOT="data"
+OUTPUT_DIR="experiment/math500/results/"
 NUM_SAMPLES=50  # Set to None to run all 500 questions
 
 # Create output directory
@@ -22,53 +22,53 @@ echo ""
 
 # Run dense evaluation (no streaming)
 echo "Running dense evaluation..."
-python run_math_evaluation.py \
+CUDA_VISIBLE_DEVICES=0 nohup python experiment/math500/run_math_evaluation.py \
     --model_name_or_path $MODEL_PATH \
     --data_root $DATA_ROOT \
     --output_dir $OUTPUT_DIR \
     --num_samples $NUM_SAMPLES \
-    --max_gen_len 512
+    --max_gen_len 8000  > eval_dense.log 2>&1 &
 
-echo ""
+# echo ""
 
-# Run streaming evaluation with different configurations
-echo "Running streaming evaluation with start_size=4, recent_size=2048..."
-python run_math_evaluation.py \
-    --model_name_or_path $MODEL_PATH \
-    --data_root $DATA_ROOT \
-    --output_dir $OUTPUT_DIR \
-    --enable_streaming \
-    --start_size 4 \
-    --recent_size 2048 \
-    --num_samples $NUM_SAMPLES \
-    --max_gen_len 512
+# # Run streaming evaluation with different configurations
+# echo "Running streaming evaluation with start_size=4, recent_size=2048..."
+# CUDA_VISIBLE_DEVICES=0 nohup python experiment/math500/run_math_evaluation.py \
+#     --model_name_or_path $MODEL_PATH \
+#     --data_root $DATA_ROOT \
+#     --output_dir $OUTPUT_DIR \
+#     --enable_streaming \
+#     --start_size 4 \
+#     --recent_size 2048 \
+#     --num_samples $NUM_SAMPLES \
+#     --max_gen_len 8000 > eval_streaming_2048.log 2>&1 &
 
-echo ""
+# echo ""
 
-echo "Running streaming evaluation with start_size=4, recent_size=1024..."
-python run_math_evaluation.py \
-    --model_name_or_path $MODEL_PATH \
-    --data_root $DATA_ROOT \
-    --output_dir $OUTPUT_DIR \
-    --enable_streaming \
-    --start_size 4 \
-    --recent_size 1024 \
-    --num_samples $NUM_SAMPLES \
-    --max_gen_len 512
+# echo "Running streaming evaluation with start_size=4, recent_size=1024..."
+# CUDA_VISIBLE_DEVICES=0 nohup python run_m   ath_evaluation.py \
+#     --model_name_or_path $MODEL_PATH \
+#     --data_root $DATA_ROOT \
+#     --output_dir $OUTPUT_DIR \
+#     --enable_streaming \
+#     --start_size 4 \
+#     --recent_size 1024 \
+#     --num_samples $NUM_SAMPLES \
+#     --max_gen_len 8000 > eval_streaming_1024.log 2>&1 &
 
-echo ""
+# echo ""
 
-echo "Running streaming evaluation with start_size=4, recent_size=512..."
-python run_math_evaluation.py \
-    --model_name_or_path $MODEL_PATH \
-    --data_root $DATA_ROOT \
-    --output_dir $OUTPUT_DIR \
-    --enable_streaming \
-    --start_size 4 \
-    --recent_size 512 \
-    --num_samples $NUM_SAMPLES \
-    --max_gen_len 512
+# echo "Running streaming evaluation with start_size=4, recent_size=512..."
+# CUDA_VISIBLE_DEVICES=0 nohup python experiment/math500/run_math_evaluation.py \
+#     --model_name_or_path $MODEL_PATH \
+#     --data_root $DATA_ROOT \
+#     --output_dir $OUTPUT_DIR \
+#     --enable_streaming \
+#     --start_size 4 \
+#     --recent_size 512 \
+#     --num_samples $NUM_SAMPLES \
+#     --max_gen_len 8000 > eval_streaming_512.log 2>&1 &
 
-echo ""
-echo "All evaluations completed!"
-echo "Results saved in: $OUTPUT_DIR" 
+# echo ""
+# echo "All evaluations completed!"
+# echo "Results saved in: $OUTPUT_DIR" 

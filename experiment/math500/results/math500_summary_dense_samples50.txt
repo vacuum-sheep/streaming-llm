@@ -1,0 +1,17 @@
+MATH500 EVALUATION RESULTS
+==================================================
+Model: deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+Streaming: False
+Total Questions: 4
+Correct Answers: 1
+Overall Accuracy: 25.00%
+
+Accuracy by Subject:
+  Precalculus: 50.00%
+  Prealgebra: 0.00%
+  Counting & Probability: 0.00%
+
+Accuracy by Level:
+  Level 2: 50.00%
+  Level 3: 0.00%
+  Level 4: 0.00%

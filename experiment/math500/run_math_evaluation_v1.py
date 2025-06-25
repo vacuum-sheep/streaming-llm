@@ -323,13 +323,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data_root", 
         type=str, 
-        default="../../data/",
+        default="data",
         help="Path to the data directory containing MATH500.jsonl"
     )
     parser.add_argument(
         "--output_dir", 
         type=str, 
-        default="results/",
+        default="experiment/math500/results/",
         help="Directory to save evaluation results"
     )
     parser.add_argument(
