@@ -22,39 +22,51 @@ from streaming_llm.enable_streaming_llm import enable_streaming_llm
 
 def extract_answer_from_response(response: str) -> str:
     """
-    Extract the final answer from the model's response.
-    This is a simple extraction - you might want to improve this based on your model's output format.
+    Extract the final answer from the model's response using robust logic from run_math_evaluation_h2o.py.
     """
-    # Remove common prefixes and clean up the response
-    response = response.strip()
-    
-    # Try to find the answer in various formats
-    # Look for boxed answers: \boxed{...}
-    boxed_match = re.search(r'\\boxed\{([^}]*)\}', response)
-    if boxed_match:
-        return boxed_match.group(1).strip()
-    
-    # Look for "The answer is" or similar patterns
-    answer_patterns = [
-        r'the answer is[:\s]+([^\n.]+)',
-        r'answer[:\s]+([^\n.]+)',
-        r'result[:\s]+([^\n.]+)',
-        r'final answer[:\s]+([^\n.]+)',
-    ]
-    
-    for pattern in answer_patterns:
-        match = re.search(pattern, response, re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
-    
-    # If no specific pattern found, return the last line or last sentence
-    lines = response.split('\n')
-    for line in reversed(lines):
-        line = line.strip()
-        if line and not line.startswith('Therefore') and not line.startswith('Thus'):
-            return line
-    
-    return response
+    response = response.replace("\u043a\u0438", "")
+    use_last_number = True
+    import re
+    # 1. If response contains "final answer is $...$. I hope"
+    if "final answer is $" in response and "$. I hope" in response:
+        tmp = response.split("final answer is $", 1)[1]
+        pred = tmp.split("$. I hope", 1)[0].strip()
+        return pred
+    # 2. If response contains "boxed"
+    elif "boxed" in response:
+        ans = response.split("boxed")[-1]
+        if len(ans) == 0:
+            return ""
+        elif ans[0] == "{":
+            stack = 1
+            a = ""
+            for c in ans[1:]:
+                if c == "{":
+                    stack += 1
+                    a += c
+                elif c == "}":
+                    stack -= 1
+                    if stack == 0:
+                        break
+                    a += c
+                else:
+                    a += c
+        else:
+            a = ans.split("$")[0].strip()
+        pred = a
+        return pred
+    # 3. Otherwise, use the last number
+    else:
+        if use_last_number:
+            pattern = r"-?\d*\.?\d+"
+            pred = re.findall(pattern, response.replace(",", ""))
+            if len(pred) >= 1:
+                pred = pred[-1]
+            else:
+                pred = ""
+        else:
+            pred = ""
+        return pred
 
 
 def normalize_answer(answer: str) -> str:
@@ -77,6 +89,177 @@ def normalize_answer(answer: str) -> str:
     answer = re.sub(r'\\[a-zA-Z]+', '', answer)
     
     return answer
+
+
+def math_equal(
+    prediction,
+    reference,
+    include_percentage=True,
+    is_close=True,
+    timeout=False,
+) -> bool:
+    """
+    Exact match of math if and only if:
+    1. numerical equal: both can convert to float and are equal
+    2. symbolic equal: both can convert to sympy expression and are equal
+    """
+    import regex
+    from sympy import simplify, N
+    from sympy.parsing.sympy_parser import parse_expr
+    from sympy.parsing.latex import parse_latex
+    from latex2sympy2 import latex2sympy
+    def numeric_equal(a, b, tol=1e-4):
+        try:
+            return abs(float(a) - float(b)) < tol
+        except:
+            return False
+    def is_digit(s):
+        try:
+            float(s)
+            return True
+        except:
+            return False
+    def parse_digits(s):
+        try:
+            return float(s)
+        except:
+            return s
+    def choice_answer_clean(s):
+        s = str(s).strip().upper()
+        if len(s) == 1 and s in ["A", "B", "C", "D", "E"]:
+            return s
+        return s
+    def str_to_pmatrix(s):
+        return s  # Placeholder, as matrix handling is rare
+    def symbolic_equal(a, b):
+        def _parse(s):
+            for f in [parse_latex, parse_expr, latex2sympy]:
+                try:
+                    return f(s.replace("\\", "\\"))
+                except:
+                    try:
+                        return f(s)
+                    except:
+                        pass
+            return s
+        a = _parse(a)
+        b = _parse(b)
+        try:
+            if str(a) == str(b) or a == b:
+                return True
+        except:
+            pass
+        try:
+            if hasattr(a, 'equals') and a.equals(b):
+                return True
+            if simplify(a - b) == 0:
+                return True
+        except:
+            pass
+        try:
+            if hasattr(a, 'lhs') and hasattr(b, 'lhs'):
+                if (abs(a.lhs - a.rhs)).equals(abs(b.lhs - b.rhs)):
+                    return True
+        except:
+            pass
+        try:
+            if numeric_equal(float(N(a)), float(N(b))):
+                return True
+        except:
+            pass
+        try:
+            if hasattr(a, 'shape') and hasattr(b, 'shape') and a.shape == b.shape:
+                _a = a.applyfunc(lambda x: round(x, 3))
+                _b = b.applyfunc(lambda x: round(x, 3))
+                if _a.equals(_b):
+                    return True
+        except:
+            pass
+        return False
+    if prediction is None or reference is None:
+        return False
+    if str(str(prediction).strip().lower()) == str(str(reference).strip().lower()):
+        return True
+    if (
+        reference in ["A", "B", "C", "D", "E"]
+        and choice_answer_clean(prediction) == reference
+    ):
+        return True
+    try:
+        if is_digit(prediction) and is_digit(reference):
+            prediction = parse_digits(prediction)
+            reference = parse_digits(reference)
+            if include_percentage:
+                gt_result = [reference / 100, reference, reference * 100]
+            else:
+                gt_result = [reference]
+            for item in gt_result:
+                try:
+                    if is_close:
+                        if numeric_equal(prediction, item):
+                            return True
+                    else:
+                        if item == prediction:
+                            return True
+                except Exception:
+                    continue
+            return False
+    except:
+        pass
+    if not prediction and prediction not in [0, False]:
+        return False
+    reference = str(reference).strip()
+    prediction = str(prediction).strip()
+    if "pmatrix" in prediction and not "pmatrix" in reference:
+        reference = str_to_pmatrix(reference)
+    pred_str, ref_str = prediction, reference
+    if (
+        prediction.startswith("[")
+        and prediction.endswith("]")
+        and not reference.startswith("(")
+    ) or (
+        prediction.startswith("(")
+        and prediction.endswith(")")
+        and not reference.startswith("[")
+    ):
+        pred_str = pred_str.strip("[]()")
+        ref_str = ref_str.strip("[]()")
+    for s in ["{", "}", "(", ")"]:
+        ref_str = ref_str.replace(s, "")
+        pred_str = pred_str.replace(s, "")
+    if pred_str.lower() == ref_str.lower():
+        return True
+    if (
+        regex.match(r"(\(|\[).+(\)|\])", prediction) is not None
+        and regex.match(r"(\(|\[).+(\)|\])", reference) is not None
+    ):
+        pred_parts = prediction[1:-1].split(",")
+        ref_parts = reference[1:-1].split(",")
+        if len(pred_parts) == len(ref_parts):
+            if all([
+                math_equal(pred_parts[i], ref_parts[i], include_percentage, is_close)
+                for i in range(len(pred_parts))
+            ]):
+                return True
+    if (
+        (
+            prediction.startswith("\\begin{pmatrix}")
+            or prediction.startswith("\\begin{bmatrix}")
+        )
+        and (
+            prediction.endswith("\\end{pmatrix}")
+            or prediction.endswith("\\end{bmatrix}")
+        )
+        and (
+            reference.startswith("\\begin{pmatrix}")
+            or reference.startswith("\\begin{bmatrix}")
+        )
+        and (
+            reference.endswith("\\end{pmatrix}") or reference.endswith("\\end{bmatrix}")
+        )
+    ):
+        return prediction == reference
+    return symbolic_equal(prediction, reference)
 
 
 def evaluate_math_question(model, tokenizer, question: str, correct_answer: str, 
@@ -126,18 +309,18 @@ def evaluate_math_question(model, tokenizer, question: str, correct_answer: str,
     
     # Extract and normalize answers
     predicted_answer = extract_answer_from_response(response)
-    normalized_predicted = normalize_answer(predicted_answer)
-    normalized_correct = normalize_answer(correct_answer)
+    # normalized_predicted = normalize_answer(predicted_answer)
+    # normalized_correct = normalize_answer(correct_answer)
     
-    # Check if answers match
-    is_correct = normalized_predicted == normalized_correct
+    # Check if answers match using math_equal
+    is_correct = math_equal(predicted_answer, correct_answer)
     
     return {
         'question': question,
         'correct_answer': correct_answer,
         'predicted_answer': predicted_answer,
-        'normalized_predicted': normalized_predicted,
-        'normalized_correct': normalized_correct,
+        # 'normalized_predicted': normalized_predicted,
+        # 'normalized_correct': normalized_correct,
         'is_correct': is_correct,
         'response': response
     }
@@ -352,7 +535,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max_gen_len", 
         type=int, 
-        default=512,
+        default=8000,
         help="Maximum generation length for each question"
     )
     parser.add_argument(
