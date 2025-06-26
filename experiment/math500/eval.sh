@@ -7,7 +7,7 @@
 MODEL_PATH="deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
 DATA_ROOT="data"
 OUTPUT_DIR="experiment/math500/results/"
-NUM_SAMPLES=50  # Set to None to run all 500 questions
+NUM_SAMPLES=500
 
 # Create output directory
 mkdir -p $OUTPUT_DIR
@@ -59,7 +59,7 @@ echo ""
 # echo ""
 
 # echo "Running streaming evaluation with start_size=4, recent_size=512..."
-CUDA_VISIBLE_DEVICES=0 nohup python experiment/math500/run_math_evaluation.py \
+CUDA_VISIBLE_DEVICES=1 nohup python experiment/math500/run_math_evaluation.py \
     --model_name_or_path $MODEL_PATH \
     --data_root $DATA_ROOT \
     --output_dir $OUTPUT_DIR \
