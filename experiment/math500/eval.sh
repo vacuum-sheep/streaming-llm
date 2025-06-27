@@ -4,7 +4,7 @@
 # This script runs the MATH500 benchmark with different configurations
 
 # Default settings
-MODEL_PATH="deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
+MODEL_PATH="/mnt/data/kwchen/hf_models/deepseek/DeepSeek-R1-Distill-Llama-8B/models--deepseek-ai--DeepSeek-R1-Distill-Llama-8B/snapshots/6a6f4aa4197940add57724a7707d069478df56b1"
 DATA_ROOT="data"
 OUTPUT_DIR="experiment/math500/results/"
 NUM_SAMPLES=500
@@ -45,29 +45,29 @@ echo ""
 
 # echo ""
 
-# echo "Running streaming evaluation with start_size=4, recent_size=1024..."
-# CUDA_VISIBLE_DEVICES=0 nohup python run_m   ath_evaluation.py \
-#     --model_name_or_path $MODEL_PATH \
-#     --data_root $DATA_ROOT \
-#     --output_dir $OUTPUT_DIR \
-#     --enable_streaming \
-#     --start_size 4 \
-#     --recent_size 1024 \
-#     --num_samples $NUM_SAMPLES \
-#     --max_gen_len 8000 > eval_streaming_1024.log 2>&1 &
-
-# echo ""
-
-# echo "Running streaming evaluation with start_size=4, recent_size=512..."
-CUDA_VISIBLE_DEVICES=1 nohup python experiment/math500/run_math_evaluation.py \
+echo "Running streaming evaluation with start_size=4, recent_size=1024..."
+CUDA_VISIBLE_DEVICES=3 nohup python experiment/math500/run_math_evaluation.py \
     --model_name_or_path $MODEL_PATH \
     --data_root $DATA_ROOT \
     --output_dir $OUTPUT_DIR \
     --enable_streaming \
     --start_size 4 \
-    --recent_size 512 \
+    --recent_size 1024 \
     --num_samples $NUM_SAMPLES \
-    --max_gen_len 8000 > eval_streaming_512.log 2>&1 &
+    --max_gen_len 8000 > eval_streaming_1024.log 2>&1 &
+
+# echo ""
+
+# echo "Running streaming evaluation with start_size=4, recent_size=512..."
+# CUDA_VISIBLE_DEVICES=2 nohup python experiment/math500/run_math_evaluation.py \
+#     --model_name_or_path $MODEL_PATH \
+#     --data_root $DATA_ROOT \
+#     --output_dir $OUTPUT_DIR \
+#     --enable_streaming \
+#     --start_size 4 \
+#     --recent_size 512 \
+#     --num_samples $NUM_SAMPLES \
+#     --max_gen_len 8000 > eval_streaming_512.log 2>&1 &
 
 # echo ""
 # echo "All evaluations completed!"
