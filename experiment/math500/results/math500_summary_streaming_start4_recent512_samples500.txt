@@ -1,0 +1,25 @@
+MATH500 EVALUATION RESULTS
+==================================================
+Model: /mnt/data/kwchen/hf_models/deepseek/DeepSeek-R1-Distill-Llama-8B/models--deepseek-ai--DeepSeek-R1-Distill-Llama-8B/snapshots/6a6f4aa4197940add57724a7707d069478df56b1
+Streaming: True
+Start Size: 4
+Recent Size: 512
+Total Questions: 500
+Correct Answers: 216
+Overall Accuracy: 43.20%
+
+Accuracy by Subject:
+  Precalculus: 25.00%
+  Intermediate Algebra: 15.46%
+  Algebra: 58.87%
+  Number Theory: 43.55%
+  Prealgebra: 64.63%
+  Geometry: 29.27%
+  Counting & Probability: 57.89%
+
+Accuracy by Level:
+  Level 2: 63.33%
+  Level 5: 21.64%
+  Level 3: 47.62%
+  Level 4: 39.06%
+  Level 1: 69.77%
