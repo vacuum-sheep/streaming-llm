@@ -6,8 +6,8 @@
 # Default settings
 MODEL_PATH="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 DATA_ROOT="data"
-OUTPUT_DIR="experiment/math500/results/qwen"
-NUM_SAMPLES=10
+OUTPUT_DIR="experiment/math500/qwen_result"
+NUM_SAMPLES=500
 
 # Create output directory
 mkdir -p $OUTPUT_DIR
