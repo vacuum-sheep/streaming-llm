@@ -1,5 +1,3 @@
-# Begin from Cursor Generated 
-
 import warnings
 warnings.filterwarnings("ignore")
 

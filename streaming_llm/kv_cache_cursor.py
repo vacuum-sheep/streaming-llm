@@ -1,4 +1,4 @@
-# o3
+# Cursor
 
 import torch
 

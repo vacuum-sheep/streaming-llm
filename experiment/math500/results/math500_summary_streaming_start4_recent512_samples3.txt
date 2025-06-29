@@ -1,7 +1,9 @@
 MATH500 EVALUATION RESULTS
 ==================================================
 Model: deepseek-ai/DeepSeek-R1-Distill-Llama-8B
-Streaming: False
+Streaming: True
+Start Size: 4
+Recent Size: 512
 Total Questions: 3
 Correct Answers: 3
 Overall Accuracy: 100.00%

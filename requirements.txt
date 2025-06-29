@@ -1,1 +1,1 @@
-latex2sympy2
+transformers==4.37.0

@@ -1,4 +1,4 @@
-# o3
+# cursor
 
 import torch
 import argparse

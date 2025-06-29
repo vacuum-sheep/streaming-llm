@@ -1,0 +1,20 @@
+MATH500 EVALUATION RESULTS
+==================================================
+Model: deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+Streaming: False
+Total Questions: 10
+Correct Answers: 7
+Overall Accuracy: 70.00%
+
+Accuracy by Subject:
+  Precalculus: 50.00%
+  Intermediate Algebra: 100.00%
+  Algebra: 66.67%
+  Number Theory: 100.00%
+  Prealgebra: 50.00%
+
+Accuracy by Level:
+  Level 2: 66.67%
+  Level 5: 50.00%
+  Level 3: 100.00%
+  Level 4: 0.00%

@@ -1,5 +1,3 @@
-# o3
-
 import torch
 
 
