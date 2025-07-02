@@ -19,7 +19,7 @@ SOURCE_VERSION=$1
 TARGET_VERSION=$2
 
 # Validate versions
-VALID_VERSIONS=("o3" "r1" "cursor")
+VALID_VERSIONS=("o3" "r1" "cursor" "base0")
 SOURCE_VALID=false
 TARGET_VALID=false
 

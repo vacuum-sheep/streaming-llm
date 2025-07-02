@@ -35,6 +35,7 @@ case $VERSION in
             cp streaming_llm/pos_shift/modify_qwen_o3.py streaming_llm/pos_shift/modify_qwen.py
             cp streaming_llm/utils_o3.py streaming_llm/utils.py
             cp streaming_llm/kv_cache_o3.py streaming_llm/kv_cache.py
+            cp experiment/math500/run_math_evaluation_o3.py experiment/math500/run_math_evaluation.py
             echo "Base files updated from o3 version successfully!"
         else
             echo "Updating o3 version..."
@@ -42,6 +43,7 @@ case $VERSION in
             cp streaming_llm/pos_shift/modify_qwen.py streaming_llm/pos_shift/modify_qwen_o3.py
             cp streaming_llm/utils.py streaming_llm/utils_o3.py
             cp streaming_llm/kv_cache.py streaming_llm/kv_cache_o3.py
+            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_o3.py
             echo "o3 version updated successfully!"
         fi
         ;;
@@ -52,6 +54,7 @@ case $VERSION in
             cp streaming_llm/pos_shift/modify_qwen_r1.py streaming_llm/pos_shift/modify_qwen.py
             cp streaming_llm/utils_r1.py streaming_llm/utils.py
             cp streaming_llm/kv_cache_r1.py streaming_llm/kv_cache.py
+            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_r1.py
             echo "Base files updated from r1 version successfully!"
         else
             echo "Updating r1 version..."
@@ -59,6 +62,7 @@ case $VERSION in
             cp streaming_llm/pos_shift/modify_qwen.py streaming_llm/pos_shift/modify_qwen_r1.py
             cp streaming_llm/utils.py streaming_llm/utils_r1.py
             cp streaming_llm/kv_cache.py streaming_llm/kv_cache_r1.py
+            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_r1.py
             echo "r1 version updated successfully!"
         fi
         ;;
@@ -69,6 +73,7 @@ case $VERSION in
             cp streaming_llm/pos_shift/modify_qwen_cursor.py streaming_llm/pos_shift/modify_qwen.py
             cp streaming_llm/utils_cursor.py streaming_llm/utils.py
             cp streaming_llm/kv_cache_cursor.py streaming_llm/kv_cache.py
+            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_cursor.py
             echo "Base files updated from cursor version successfully!"
         else
             echo "Updating cursor version..."
@@ -76,12 +81,32 @@ case $VERSION in
             cp streaming_llm/pos_shift/modify_qwen.py streaming_llm/pos_shift/modify_qwen_cursor.py
             cp streaming_llm/utils.py streaming_llm/utils_cursor.py
             cp streaming_llm/kv_cache.py streaming_llm/kv_cache_cursor.py
+            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_cursor.py
             echo "cursor version updated successfully!"
+        fi
+        ;;
+    "base0")
+        if [ "$REVERSE" = true ]; then
+            echo "Reverse updating base0 version..."
+            # Copy base0 files to base files
+            cp streaming_llm/pos_shift/modify_qwen_base0.py streaming_llm/pos_shift/modify_qwen.py
+            cp streaming_llm/utils_base0.py streaming_llm/utils.py
+            cp streaming_llm/kv_cache_base0.py streaming_llm/kv_cache.py
+            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_base0.py
+            echo "Base files updated from base0 version successfully!"
+        else
+            echo "Updating base0 version..."
+            # Copy base files to base0 versions
+            cp streaming_llm/pos_shift/modify_qwen.py streaming_llm/pos_shift/modify_qwen_base0.py
+            cp streaming_llm/utils.py streaming_llm/utils_base0.py
+            cp streaming_llm/kv_cache.py streaming_llm/kv_cache_base0.py
+            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_base0.py
+            echo "base0 version updated successfully!"
         fi
         ;;
     *)
         echo "Invalid version: $VERSION"
-        echo "Valid versions: o3, r1, cursor"
+        echo "Valid versions: o3, r1, cursor, base0"
         exit 1
         ;;
 esac 

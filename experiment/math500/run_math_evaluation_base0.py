@@ -1,3 +1,5 @@
+# base0
+
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -278,8 +280,8 @@ def evaluate_math_question(model, tokenizer, question: str, correct_answer: str,
             input_ids=input_ids,
             past_key_values=None,  # Start fresh for each question
             use_cache=True,
-            output_attentions=True,  # Include attention weights
         )
+        past_key_values = outputs.past_key_values
         
         # Generate tokens
         generated_ids = []
@@ -287,13 +289,14 @@ def evaluate_math_question(model, tokenizer, question: str, correct_answer: str,
             outputs = model(
                 input_ids=torch.tensor([[generated_ids[-1] if generated_ids else outputs.logits[:, -1, :].argmax(dim=-1).item()]], 
                                      device=model.device),
-                past_key_values=outputs.past_key_values,
+                past_key_values=past_key_values,
                 use_cache=True,
             )
+            past_key_values = outputs.past_key_values
             
             # Apply KV cache if enabled
-            # if kv_cache is not None:
-                # outputs.past_key_values = kv_cache.evict_for_space(outputs.past_key_values, 1, outputs.attentions)
+            if kv_cache is not None:
+                past_key_values = kv_cache.evict_for_space(past_key_values, 1)
             
             next_token = outputs.logits[:, -1, :].argmax(dim=-1).item()
             generated_ids.append(next_token)
@@ -321,7 +324,6 @@ def evaluate_math_question(model, tokenizer, question: str, correct_answer: str,
         'is_correct': is_correct,
         'response': response
     }
-    kv_cache._clean_scores()
 
 
 def run_math_evaluation(model, tokenizer, data: List[Dict], kv_cache=None, 

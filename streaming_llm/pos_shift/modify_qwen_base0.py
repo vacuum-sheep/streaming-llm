@@ -66,7 +66,6 @@ def qwen2_pos_shift_attention_forward(
     uses *user‑provided* positions, while **keys** follow their absolute index
     in the concatenated KV‑cache.
     """
-    print("past_key_value", type(past_key_value))
     bsz, q_len, _ = hidden_states.size()
 
     # Projections
