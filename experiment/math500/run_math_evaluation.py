@@ -15,7 +15,7 @@ from typing import List, Dict, Any
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from streaming_llm.utils import load, load_jsonl
-from streaming_llm.enable_streaming_llm import enable_streaming_llm
+from streaming_llm.enable_h2o import enable_streaming_llm
 
 
 def extract_answer_from_response(response: str) -> str:
@@ -286,15 +286,26 @@ def evaluate_math_question(model, tokenizer, question: str, correct_answer: str,
         for _ in range(max_gen_len):
             outputs = model(
                 input_ids=torch.tensor([[generated_ids[-1] if generated_ids else outputs.logits[:, -1, :].argmax(dim=-1).item()]], 
-                                     device=model.device),
+                                    device=model.device),
                 past_key_values=past_key_values,
                 use_cache=True,
+                output_attentions=True,  # <-- Make sure to output attentions
             )
-            past_key_values = outputs.past_key_values
+            # past_key_values = outputs.past_key_values
             
             # Apply KV cache if enabled
             if kv_cache is not None:
-                past_key_values = kv_cache.evict_for_space(past_key_values, 1)
+                # attn_score_cache = outputs.attentions if hasattr(outputs, 'attentions') else None
+                # past_key_values = kv_cache.evict_for_space(past_key_values, 1)
+                pkv_list   = list(outputs.past_key_values)     # tuple → list
+                attn_list  = outputs.attentions                # len == num_layers
+                for i, (pkv_layer, attn_layer) in enumerate(zip(pkv_list, attn_list)):
+                    kv_cache_layer = model.model.layers[i].self_attn.kv_cache
+                    pkv_list[i]    = kv_cache_layer(           # 更新 hh_score 并裁剪
+                        pkv_layer,
+                        attn_layer.detach().clone()
+                    )
+                past_key_values = tuple(pkv_list)              # 写回，下次 forward 用
             
             next_token = outputs.logits[:, -1, :].argmax(dim=-1).item()
             generated_ids.append(next_token)
@@ -422,7 +433,7 @@ def main(args):
     if args.enable_streaming:
         print(f"Enabling streaming with start_size={args.start_size}, recent_size={args.recent_size}")
         kv_cache = enable_streaming_llm(
-            model, start_size=args.start_size, recent_size=args.recent_size
+            model, start_size=args.start_size, recent_size=args.recent_size, hh_size=args.hh_size
         )
     
     # Run evaluation
@@ -455,7 +466,7 @@ def main(args):
         # Create filename based on settings
         setting_tag = ""
         if args.enable_streaming:
-            setting_tag += f"_streaming_start{args.start_size}_recent{args.recent_size}"
+            setting_tag += f"_h2o_recent{args.recent_size}_hh{args.hh_size}"
         else:
             setting_tag += "_dense"
         
@@ -542,6 +553,13 @@ if __name__ == "__main__":
         default=None,
         help="Number of samples to evaluate (None for all)"
     )
+    parser.add_argument(
+        "--hh_size", 
+        type=int, 
+        default=4,
+        help="Number of tokens to keep at the start of the sequence"
+    )
     
     args = parser.parse_args()
+    print(args.hh_size)
     main(args) 
