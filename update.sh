@@ -85,28 +85,47 @@ case $VERSION in
             echo "cursor version updated successfully!"
         fi
         ;;
-    "base0")
+    "base3")
         if [ "$REVERSE" = true ]; then
-            echo "Reverse updating base0 version..."
-            # Copy base0 files to base files
-            cp streaming_llm/pos_shift/modify_qwen_base0.py streaming_llm/pos_shift/modify_qwen.py
-            cp streaming_llm/utils_base0.py streaming_llm/utils.py
-            cp streaming_llm/kv_cache_base0.py streaming_llm/kv_cache.py
-            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_base0.py
-            echo "Base files updated from base0 version successfully!"
+            echo "Reverse updating base3 version..."
+            # Copy base3 files to base files
+            cp streaming_llm/pos_shift/modify_qwen_base3.py streaming_llm/pos_shift/modify_qwen.py
+            cp streaming_llm/utils_base3.py streaming_llm/utils.py
+            cp streaming_llm/kv_cache_base3.py streaming_llm/kv_cache.py
+            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_base3.py
+            echo "Base files updated from base3 version successfully!"
         else
-            echo "Updating base0 version..."
+            echo "Updating base3 version..."
+            # Copy base files to base1 versions
+            cp streaming_llm/pos_shift/modify_qwen.py streaming_llm/pos_shift/modify_qwen_base3.py
+            cp streaming_llm/utils.py streaming_llm/utils_base3.py
+            cp streaming_llm/kv_cache.py streaming_llm/kv_cache_base3.py
+            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_base3.py
+            echo "base3 version updated successfully!"
+        fi
+        ;;
+    "base4")
+        if [ "$REVERSE" = true ]; then
+            echo "Reverse updating base4 version..."
+            # Copy base0 files to base files
+            cp streaming_llm/pos_shift/modify_qwen_base4.py streaming_llm/pos_shift/modify_qwen.py
+            cp streaming_llm/utils_base4.py streaming_llm/utils.py
+            cp streaming_llm/kv_cache_base4.py streaming_llm/kv_cache.py
+            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_base4.py
+            echo "Base files updated from base4 version successfully!"
+        else
+            echo "Updating base4 version..."
             # Copy base files to base0 versions
-            cp streaming_llm/pos_shift/modify_qwen.py streaming_llm/pos_shift/modify_qwen_base0.py
-            cp streaming_llm/utils.py streaming_llm/utils_base0.py
-            cp streaming_llm/kv_cache.py streaming_llm/kv_cache_base0.py
-            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_base0.py
-            echo "base0 version updated successfully!"
+            cp streaming_llm/pos_shift/modify_qwen.py streaming_llm/pos_shift/modify_qwen_base4.py
+            cp streaming_llm/utils.py streaming_llm/utils_base4.py
+            cp streaming_llm/kv_cache.py streaming_llm/kv_cache_base4.py
+            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_base4.py
+            echo "base4 version updated successfully!"
         fi
         ;;
     *)
         echo "Invalid version: $VERSION"
-        echo "Valid versions: o3, r1, cursor, base0"
+        echo "Valid versions: o3, r1, cursor, base3, base4"
         exit 1
         ;;
 esac 

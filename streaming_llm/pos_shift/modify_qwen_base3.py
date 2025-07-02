@@ -127,7 +127,6 @@ def evict_past_key_value(past_key_value, attn_weights, hh_score, num_kv_heads, g
     hh_score = update_hh_score(attn_weights, hh_score, num_kv_heads, group_size)
 
     seq_len = past_key_value[0].size(k_seq_dim)
-
     if seq_len <= cache_size:
         return past_key_value, hh_score  # 🔸 Cache not full.
 
@@ -147,19 +146,38 @@ def evict_past_key_value(past_key_value, attn_weights, hh_score, num_kv_heads, g
     # print("keep_idx_kv.max()", keep_idx_kv.max().item(), "seq_len:", seq_len)
     # print("keep_idx_kv.min()", keep_idx_kv.min().item())
 
-    k_squeezed = past_key_value[0].squeeze(0)  # [num_kv_heads, seq_len, head_dim]
-    v_squeezed = past_key_value[1].squeeze(0)
+    # Fix: Use the original mask shape for KV heads, not expanded to query heads
+    mask_kv = torch.zeros_like(hh_score, dtype=torch.bool, device=past_key_value[0].device)
+    mask_kv.scatter_(-1, keep_idx_kv, 1)
+    # print("mask_kv.sum()", mask_kv.sum().item(), "期待:", num_kv_heads * cache_size)
 
-    head_dim = k_squeezed.size(-1)
-    expanded_keep_idx = keep_idx_kv.unsqueeze(-1).expand(-1, -1, head_dim)  # [num_kv_heads, cache_size, head_dim]
+    # Get the tensor dimensions properly
+    bsz, num_heads, _, head_dim = past_key_value[0].shape
+    
+    # Use the KV-level mask to index the KV tensors
+    k_squeezed = past_key_value[0].squeeze()  # Shape: [num_kv_heads, seq_len, head_dim]
+    v_squeezed = past_key_value[1].squeeze()  # Shape: [num_kv_heads, seq_len, head_dim]
+    # print("k_squeezed", k_squeezed.shape)
+    
+    # Use the KV-level mask to select the kept positions
+    k_hh_recent = k_squeezed[mask_kv]  # This will flatten the selected elements
+    v_hh_recent = v_squeezed[mask_kv]  # This will flatten the selected elements
+    
+    # Reshape back to the expected format for KV heads
+    k_hh_recent = k_hh_recent.view(num_kv_heads, cache_size, head_dim)
+    v_hh_recent = v_hh_recent.view(num_kv_heads, cache_size, head_dim)
+    
+    # Add back the batch dimension
+    k_hh_recent = k_hh_recent.unsqueeze(0)  # Shape: [1, num_kv_heads, cache_size, head_dim]
+    v_hh_recent = v_hh_recent.unsqueeze(0)  # Shape: [1, num_kv_heads, cache_size, head_dim]
 
-    k_hh_recent = torch.gather(k_squeezed, 1, expanded_keep_idx)  # [num_kv_heads, cache_size, head_dim]
-    v_hh_recent = torch.gather(v_squeezed, 1, expanded_keep_idx)
+    hh_score = hh_score[mask_kv].view(num_kv_heads, cache_size)
 
-    k_hh_recent = k_hh_recent.unsqueeze(0)  # [1, num_kv_heads, cache_size, head_dim]
-    v_hh_recent = v_hh_recent.unsqueeze(0)
-
-    hh_score = torch.gather(hh_score, 1, keep_idx_kv)  # [num_kv_heads, cache_size]
+    # print("k_squeezed", k_squeezed.shape)
+    # print("mask_kv", mask_kv.shape)
+    # print("k_hh_recent", k_hh_recent.shape)
+    # print("v_hh_recent", v_hh_recent.shape)
+    # print("return tuple shape", (k_hh_recent.unsqueeze(0).shape, v_hh_recent.unsqueeze(0).shape))
 
     return (k_hh_recent, v_hh_recent), hh_score
     
@@ -199,7 +217,7 @@ def qwen2_pos_shift_attention_forward(
         kv_seq_len += past_key_value.get_usable_length(kv_seq_len, self.layer_idx)
 
     # Build RoPE caches up to *full* length (past + current)
-    cos, sin = self.rotary_emb(value_states, seq_len=max(kv_seq_len, position_ids.max().item() + 1))
+    cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
 
     # --- 1. Apply RoPE to **queries** with *given* position_ids -------------
     query_states = apply_rotary_pos_emb_single(

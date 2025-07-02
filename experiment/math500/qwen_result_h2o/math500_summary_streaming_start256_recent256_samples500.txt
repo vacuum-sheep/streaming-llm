@@ -1,0 +1,17 @@
+MATH500 EVALUATION RESULTS
+==================================================
+Model: deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+Streaming: True
+Start Size: 256
+Recent Size: 256
+Total Questions: 2
+Correct Answers: 2
+Overall Accuracy: 100.00%
+
+Accuracy by Subject:
+  Prealgebra: 100.00%
+  Algebra: 100.00%
+
+Accuracy by Level:
+  Level 2: 100.00%
+  Level 3: 100.00%

@@ -44,10 +44,6 @@ def apply_rotary_pos_emb_single(
         Dimension along which the position caches will be unsqueezed so that
         they broadcast correctly against *x*.
     """
-    # print("cos.shape:", cos.shape)
-    # print("position_ids:", position_ids)
-    # print("max position_id:", position_ids.max().item(), "seq_len:", cos.shape[0])
-
     cos = cos.squeeze(1).squeeze(0)
     sin = sin.squeeze(1).squeeze(0)
     cos = cos[position_ids].unsqueeze(unsqueeze_dim)
@@ -57,41 +53,41 @@ def apply_rotary_pos_emb_single(
 
 def pad_and_add(old, new):
     """
-    Align `old` and `new` along the last dimension by zero-padding the
-    shorter one, then return their element-wise sum.
+        Align `old` and `new` along the last dimension by zero-padding the
+        shorter one, then return their element-wise sum.
 
-    Parameters
-    ----------
-    old : (num_kv_heads, L_old) tensor
-        历史累积的 heavy-hitter 分数
-    new : (num_kv_heads, L_new) tensor
-        本次 forward 计算出的分数（已经按 batch / query 求和）
+        Parameters
+        ----------
+        old : (num_kv_heads, L_old) tensor
+            历史累积的 heavy-hitter 分数
+        new : (num_kv_heads, L_new) tensor
+            本次 forward 计算出的分数（已经按 batch / query 求和）
 
-    Returns
-    -------
-    out : (num_kv_heads, max(L_old, L_new)) tensor
-        对齐后相加的结果
-    """
-    if old is None:
-        # 初始化阶段直接克隆一份，避免后续原地修改
-        return new.clone()
+        Returns
+        -------
+        out : (num_kv_heads, max(L_old, L_new)) tensor
+            对齐后相加的结果
+        """
+        if old is None:
+            # 初始化阶段直接克隆一份，避免后续原地修改
+            return new.clone()
 
-    L_old, L_new = old.size(-1), new.size(-1)
+        L_old, L_new = old.size(-1), new.size(-1)
 
-    if L_new > L_old:
-        # 典型路径：序列在向右增长
-        # 在 old 的右侧补零 → tokens index 对齐
-        old = F.pad(old, (0, L_new - L_old))          # (left_pad, right_pad)
-    elif L_new < L_old:
-        # 只在出现"截断 KV-cache"后才会走到这里：
-        # 现在需要让 new 对齐到 old 的 **尾部** → 在左边补零
-        new = F.pad(new, (L_old - L_new, 0))
+        if L_new > L_old:
+            # 典型路径：序列在向右增长
+            # 在 old 的右侧补零 → tokens index 对齐
+            old = F.pad(old, (0, L_new - L_old))          # (left_pad, right_pad)
+        elif L_new < L_old:
+            # 只在出现"截断 KV-cache"后才会走到这里：
+            # 现在需要让 new 对齐到 old 的 **尾部** → 在左边补零
+            new = F.pad(new, (L_old - L_new, 0))
 
-    # 长度已经一致，可以安全相加
-    return old + new
+        # 长度已经一致，可以安全相加
+        return old + new
 
 
-def update_hh_score(attn_weights, hh_score, num_kv_heads, group_size):
+def update_hh_score(attn_weights, hh_score, num_kv_heads=8, group_size=4):
     """Accumulate attention weights per *source* position (heavy‑hitter).
 
     attn_score_cache shape: [batch, heads, tgt_len, src_len]. We sum out
@@ -99,9 +95,6 @@ def update_hh_score(attn_weights, hh_score, num_kv_heads, group_size):
     """
         # attn_score_cache: (bsz, num_heads, q_len, kv_seq_len)
     bsz, _, q_len, kv_seq_len = attn_weights.shape
-
-    # print('attn_weights.shape:', attn_weights.shape)
-    # print('num_kv_heads:', num_kv_heads, 'group_size:', group_size)
 
     # 重新分组：把同一 kv-head 的 query-heads 放到一起
     cache = attn_weights.view(
@@ -123,11 +116,10 @@ def update_hh_score(attn_weights, hh_score, num_kv_heads, group_size):
 
     return hh_score
 
-def evict_past_key_value(past_key_value, attn_weights, hh_score, num_kv_heads, group_size=7, cache_size=512, k_seq_dim=2, recent_size=256, hh_size=256):
-    hh_score = update_hh_score(attn_weights, hh_score, num_kv_heads, group_size)
+def evict_past_key_value(past_key_value, attn_weights, hh_score, cache_size=512, k_seq_dim=2, recent_size=256, hh_size=256, num_kv_heads=8):
+    hh_score = update_hh_score(attn_weights, hh_score)
 
     seq_len = past_key_value[0].size(k_seq_dim)
-
     if seq_len <= cache_size:
         return past_key_value, hh_score  # 🔸 Cache not full.
 
@@ -143,24 +135,31 @@ def evict_past_key_value(past_key_value, attn_weights, hh_score, num_kv_heads, g
                     .repeat(num_kv_heads, 1)
 
     keep_idx_kv = torch.cat([keep_idx_kv.sort().values, keep_recent], dim=-1)
-    # print("keep_idx_kv", keep_idx_kv)
-    # print("keep_idx_kv.max()", keep_idx_kv.max().item(), "seq_len:", seq_len)
-    # print("keep_idx_kv.min()", keep_idx_kv.min().item())
 
-    k_squeezed = past_key_value[0].squeeze(0)  # [num_kv_heads, seq_len, head_dim]
-    v_squeezed = past_key_value[1].squeeze(0)
+    # Fix: Use the original mask shape for KV heads, not expanded to query heads
+    mask_kv = torch.zeros_like(hh_score, dtype=torch.bool, device=past_key_value[0].device)
+    mask_kv.scatter_(-1, keep_idx_kv, 1)
 
-    head_dim = k_squeezed.size(-1)
-    expanded_keep_idx = keep_idx_kv.unsqueeze(-1).expand(-1, -1, head_dim)  # [num_kv_heads, cache_size, head_dim]
+    # Get the tensor dimensions properly
+    bsz, num_heads, _, head_dim = past_key_value[0].shape
+    
+    # Use the KV-level mask to index the KV tensors
+    k_squeezed = past_key_value[0].squeeze()  # Shape: [num_kv_heads, seq_len, head_dim]
+    v_squeezed = past_key_value[1].squeeze()  # Shape: [num_kv_heads, seq_len, head_dim]
+    
+    # Use the KV-level mask to select the kept positions
+    k_hh_recent = k_squeezed[mask_kv]  # This will flatten the selected elements
+    v_hh_recent = v_squeezed[mask_kv]  # This will flatten the selected elements
+    
+    # Reshape back to the expected format for KV heads
+    k_hh_recent = k_hh_recent.view(num_kv_heads, cache_size, head_dim)
+    v_hh_recent = v_hh_recent.view(num_kv_heads, cache_size, head_dim)
+    
+    # Add back the batch dimension
+    k_hh_recent = k_hh_recent.unsqueeze(0)  # Shape: [1, num_kv_heads, cache_size, head_dim]
+    v_hh_recent = v_hh_recent.unsqueeze(0)  # Shape: [1, num_kv_heads, cache_size, head_dim]
 
-    k_hh_recent = torch.gather(k_squeezed, 1, expanded_keep_idx)  # [num_kv_heads, cache_size, head_dim]
-    v_hh_recent = torch.gather(v_squeezed, 1, expanded_keep_idx)
-
-    k_hh_recent = k_hh_recent.unsqueeze(0)  # [1, num_kv_heads, cache_size, head_dim]
-    v_hh_recent = v_hh_recent.unsqueeze(0)
-
-    hh_score = torch.gather(hh_score, 1, keep_idx_kv)  # [num_kv_heads, cache_size]
-
+    hh_score = hh_score[mask_kv].view(num_kv_heads, cache_size)
     return (k_hh_recent, v_hh_recent), hh_score
     
 
@@ -179,7 +178,7 @@ def qwen2_pos_shift_attention_forward(
     uses *user‑provided* positions, while **keys** follow their absolute index
     in the concatenated KV‑cache.
     """
-
+    print("past_key_value", type(past_key_value))
     bsz, q_len, _ = hidden_states.size()
 
     # Projections
@@ -199,7 +198,7 @@ def qwen2_pos_shift_attention_forward(
         kv_seq_len += past_key_value.get_usable_length(kv_seq_len, self.layer_idx)
 
     # Build RoPE caches up to *full* length (past + current)
-    cos, sin = self.rotary_emb(value_states, seq_len=max(kv_seq_len, position_ids.max().item() + 1))
+    cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
 
     # --- 1. Apply RoPE to **queries** with *given* position_ids -------------
     query_states = apply_rotary_pos_emb_single(
@@ -241,18 +240,14 @@ def qwen2_pos_shift_attention_forward(
     attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
     attn_weights = nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
 
-
-    # if hasattr(past_key_value, "to_legacy_cache"):
-    #     print("past_key_value is a legacy cache")
+    if hasattr(past_key_value, "to_legacy_cache"):
+        print("past_key_value is a legacy cache")
 
     past_key_value = past_key_value.to_legacy_cache()
-
     if not hasattr(self, "hh_score"):
         self.hh_score = None
 
-    past_key_value = list(past_key_value)
-    past_key_value[self.layer_idx], self.hh_score = evict_past_key_value(past_key_value[self.layer_idx], attn_weights.detach().clone(), self.hh_score, self.num_key_value_heads)
-    past_key_value = tuple(past_key_value)
+    past_key_value, self.hh_score = evict_past_key_value(past_key_value, attn_weights.detach().clone(), self.hh_score)
 
     past_key_value = DynamicCache.from_legacy_cache(past_key_value)
 
