@@ -266,8 +266,8 @@ def evaluate_math_question(model, tokenizer, question: str, correct_answer: str,
     Evaluate a single math question.
     """
     # Create the prompt
-    # prompt = f"<｜begin▁of▁sentence｜><｜User｜>{question}. Please reason step by step, and put your final answer within \\boxed{{}}\n<｜end▁of▁sentence｜>\n<｜begin▁of▁sentence｜><｜Assistant｜>\n"""
-    prompt = f"Question: {question}. Please reason step by step, and put your final answer within \\boxed{{}}\n"
+    prompt = f"<｜begin▁of▁sentence｜><｜User｜>{question}. Please reason step by step, and put your final answer within \\boxed{{}}\n<｜end▁of▁sentence｜>\n<｜begin▁of▁sentence｜><｜Assistant｜>\n"""
+    # prompt = f"Question: {question}. Please reason step by step, and put your final answer within \\boxed{{}}\n"
     
     # Tokenize the input
     input_ids = tokenizer(prompt, return_tensors="pt").input_ids

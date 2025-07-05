@@ -85,23 +85,23 @@ case $VERSION in
             echo "cursor version updated successfully!"
         fi
         ;;
-    "base3")
+    "base5")
         if [ "$REVERSE" = true ]; then
-            echo "Reverse updating base3 version..."
-            # Copy base3 files to base files
-            cp streaming_llm/pos_shift/modify_qwen_base3.py streaming_llm/pos_shift/modify_qwen.py
-            cp streaming_llm/utils_base3.py streaming_llm/utils.py
-            cp streaming_llm/kv_cache_base3.py streaming_llm/kv_cache.py
-            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_base3.py
-            echo "Base files updated from base3 version successfully!"
+            echo "Reverse updating base5 version..."
+            # Copy base5 files to base files
+            cp streaming_llm/pos_shift/modify_qwen_base5.py streaming_llm/pos_shift/modify_qwen.py
+            cp streaming_llm/utils_base5.py streaming_llm/utils.py
+            cp streaming_llm/kv_cache_base5.py streaming_llm/kv_cache.py
+            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_base5.py
+            echo "Base files updated from base5 version successfully!"
         else
-            echo "Updating base3 version..."
+            echo "Updating base5 version..."
             # Copy base files to base1 versions
-            cp streaming_llm/pos_shift/modify_qwen.py streaming_llm/pos_shift/modify_qwen_base3.py
-            cp streaming_llm/utils.py streaming_llm/utils_base3.py
-            cp streaming_llm/kv_cache.py streaming_llm/kv_cache_base3.py
-            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_base3.py
-            echo "base3 version updated successfully!"
+            cp streaming_llm/pos_shift/modify_qwen.py streaming_llm/pos_shift/modify_qwen_base5.py
+            cp streaming_llm/utils.py streaming_llm/utils_base5.py
+            cp streaming_llm/kv_cache.py streaming_llm/kv_cache_base5.py
+            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_base5.py
+            echo "base5 version updated successfully!"
         fi
         ;;
     "base4")
@@ -125,7 +125,7 @@ case $VERSION in
         ;;
     *)
         echo "Invalid version: $VERSION"
-        echo "Valid versions: o3, r1, cursor, base3, base4"
+        echo "Valid versions: o3, r1, cursor, base5, base4"
         exit 1
         ;;
 esac 
