@@ -22,7 +22,7 @@ echo ""
 
 
 echo "Running streaming evaluation with start_size=256, recent_size=256..."
-CUDA_VISIBLE_DEVICES=1 nohup python experiment/math500/run_math_evaluation.py \
+CUDA_VISIBLE_DEVICES=0 nohup python experiment/math500/run_math_evaluation.py \
     --model_name_or_path $MODEL_PATH \
     --data_root $DATA_ROOT \
     --output_dir $OUTPUT_DIR \

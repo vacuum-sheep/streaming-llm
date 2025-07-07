@@ -268,6 +268,7 @@ def evaluate_math_question(model, tokenizer, question: str, correct_answer: str,
     # Create the prompt
     prompt = f"<｜begin▁of▁sentence｜><｜User｜>{question}. Please reason step by step, and put your final answer within \\boxed{{}}\n<｜end▁of▁sentence｜>\n<｜begin▁of▁sentence｜><｜Assistant｜>\n"""
     # prompt = f"Question: {question}. Please reason step by step, and put your final answer within \\boxed{{}}\n"
+
     
     # Tokenize the input
     input_ids = tokenizer(prompt, add_special_tokens=False, return_tensors='pt').input_ids.to(model.device)
@@ -279,7 +280,7 @@ def evaluate_math_question(model, tokenizer, question: str, correct_answer: str,
         num_return_sequences=1,
         return_dict_in_generate=True,
         output_scores=True,
-        pad_token_id=tokenizer.eos_token_id,
+        pad_token_id=tokenizer.pad_token_id,
         eos_token_id=tokenizer.eos_token_id
     )
     for name, m in model.named_modules():

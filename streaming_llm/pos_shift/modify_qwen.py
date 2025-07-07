@@ -48,8 +48,17 @@ def apply_rotary_pos_emb_single(
     # print("position_ids:", position_ids)
     # print("max position_id:", position_ids.max().item(), "seq_len:", cos.shape[0])
 
-    cos = cos.squeeze(1).squeeze(0)
-    sin = sin.squeeze(1).squeeze(0)
+    # 更安全的维度处理（支持不同格式的位置编码）
+    if cos.dim() == 3:  # [seq_len, 1, head_dim]
+        cos = cos.squeeze(1)  # [seq_len, head_dim]
+    if sin.dim() == 3:
+        sin = sin.squeeze(1)
+    
+    # 确保position_ids形状正确
+    if position_ids.dim() == 1:
+        position_ids = position_ids.unsqueeze(0)
+    
+    # 按位置索引获取cos/sin值
     cos = cos[position_ids].unsqueeze(unsqueeze_dim)
     sin = sin[position_ids].unsqueeze(unsqueeze_dim)
 
@@ -123,43 +132,55 @@ def update_hh_score(attn_weights, hh_score, num_kv_heads, group_size):
 
     return hh_score
 
-def evict_past_key_value(past_key_value, attn_weights, hh_score, num_kv_heads, group_size=7, cache_size=512, k_seq_dim=2, recent_size=256, hh_size=256):
+def evict_past_key_value(
+    past_key_value,
+    attn_weights,
+    hh_score,
+    num_kv_heads,
+    group_size,  # 动态计算而非固定值
+    cache_size=512,
+    k_seq_dim=2,
+    recent_size=256,
+    hh_size=256
+):
     hh_score = update_hh_score(attn_weights, hh_score, num_kv_heads, group_size)
-
+    
+    # 获取当前序列长度
     seq_len = past_key_value[0].size(k_seq_dim)
-
+    
     if seq_len <= cache_size:
-        return past_key_value, hh_score  # 🔸 Cache not full.
+        return past_key_value, hh_score
 
-    # keep_idx_kv: (num_kv_heads, hh_size + recent_size)
-    _, keep_idx_kv = torch.topk(
-            hh_score[:, :seq_len - recent_size],
-            k=hh_size,
-            dim=-1
-    )
-
-    keep_recent = torch.arange(seq_len - recent_size, seq_len,
-                                device=keep_idx_kv.device)\
-                    .repeat(num_kv_heads, 1)
-
+    # 处理多batch情况（假设batch=1）
+    k_cache = past_key_value[0].squeeze(0)  # [num_kv_heads, seq_len, head_dim]
+    v_cache = past_key_value[1].squeeze(0)
+    
+    # 分区域选择保留的token
+    keep_idx_kv = torch.topk(
+        hh_score[:, :seq_len - recent_size],
+        k=hh_size,
+        dim=-1
+    ).indices
+    
+    # 直接使用sort().values保持顺序
+    keep_recent = torch.arange(
+        seq_len - recent_size, 
+        seq_len, 
+        device=keep_idx_kv.device
+    ).expand(num_kv_heads, -1)
+    
     keep_idx_kv = torch.cat([keep_idx_kv.sort().values, keep_recent], dim=-1)
-    # print("keep_idx_kv", keep_idx_kv)
-    # print("keep_idx_kv.max()", keep_idx_kv.max().item(), "seq_len:", seq_len)
-    # print("keep_idx_kv.min()", keep_idx_kv.min().item())
-
-    k_squeezed = past_key_value[0].squeeze(0)  # [num_kv_heads, seq_len, head_dim]
-    v_squeezed = past_key_value[1].squeeze(0)
-
-    head_dim = k_squeezed.size(-1)
-    expanded_keep_idx = keep_idx_kv.unsqueeze(-1).expand(-1, -1, head_dim)  # [num_kv_heads, cache_size, head_dim]
-
-    k_hh_recent = torch.gather(k_squeezed, 1, expanded_keep_idx)  # [num_kv_heads, cache_size, head_dim]
-    v_hh_recent = torch.gather(v_squeezed, 1, expanded_keep_idx)
-
-    k_hh_recent = k_hh_recent.unsqueeze(0)  # [1, num_kv_heads, cache_size, head_dim]
+    
+    # 收集保留的KV
+    k_hh_recent = k_cache.gather(1, keep_idx_kv.unsqueeze(-1).expand(-1, -1, k_cache.size(-1)))
+    v_hh_recent = v_cache.gather(1, keep_idx_kv.unsqueeze(-1).expand(-1, -1, v_cache.size(-1)))
+    
+    # 保持原始batch维度
+    k_hh_recent = k_hh_recent.unsqueeze(0)
     v_hh_recent = v_hh_recent.unsqueeze(0)
-
-    hh_score = torch.gather(hh_score, 1, keep_idx_kv)  # [num_kv_heads, cache_size]
+    
+    # 更新hh_score
+    hh_score = hh_score.gather(1, keep_idx_kv)
 
     return (k_hh_recent, v_hh_recent), hh_score
     
@@ -199,7 +220,15 @@ def qwen2_pos_shift_attention_forward(
         kv_seq_len += past_key_value.get_usable_length(kv_seq_len, self.layer_idx)
 
     # Build RoPE caches up to *full* length (past + current)
-    cos, sin = self.rotary_emb(value_states, seq_len=max(kv_seq_len, position_ids.max().item() + 1))
+    if position_ids is None:
+            position_ids = torch.arange(
+                kv_seq_len - q_len, kv_seq_len, 
+                dtype=torch.long, device=query_states.device
+            ).unsqueeze(0)
+    
+    # 创建RoPE缓存（修复：使用最大长度）
+    max_seq_len = max(kv_seq_len, position_ids.max().item() + 1)
+    cos, sin = self.rotary_emb(value_states, seq_len=max_seq_len)
 
     # --- 1. Apply RoPE to **queries** with *given* position_ids -------------
     query_states = apply_rotary_pos_emb_single(
@@ -215,7 +244,7 @@ def qwen2_pos_shift_attention_forward(
         )
 
     # --- 2. Apply RoPE to **keys** with their *absolute* positions ----------
-    key_position_ids = torch.arange(kv_seq_len, device=key_states.device).unsqueeze(0)
+    key_position_ids = torch.arange(kv_seq_len, device=key_states.device).view(1, -1)
     key_states = apply_rotary_pos_emb_single(
         key_states, cos, sin, key_position_ids, unsqueeze_dim=1
     )
@@ -242,22 +271,31 @@ def qwen2_pos_shift_attention_forward(
     attn_weights = nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
 
 
-    # if hasattr(past_key_value, "to_legacy_cache"):
-    #     print("past_key_value is a legacy cache")
-
-    past_key_value = past_key_value.to_legacy_cache()
-
+    legacy_cache = past_key_value.to_legacy_cache()
+        
     if not hasattr(self, "hh_score"):
         self.hh_score = None
-
-    past_key_value = list(past_key_value)
-    past_key_value[self.layer_idx], self.hh_score = evict_past_key_value(past_key_value[self.layer_idx], attn_weights.detach().clone(), self.hh_score, self.num_key_value_heads)
-    past_key_value = tuple(past_key_value)
-
-    past_key_value = DynamicCache.from_legacy_cache(past_key_value)
+    
+    layer_cache = legacy_cache[self.layer_idx]
+    new_layer_cache, self.hh_score = evict_past_key_value(
+        layer_cache,
+        attn_weights.detach(),
+        self.hh_score,
+        self.num_key_value_heads,
+        self.num_key_value_groups, # 传入动态值
+        cache_size=512,
+        recent_size=256,
+        hh_size=256
+    )
+    
+    # 更新缓存
+    legacy_cache = list(legacy_cache)
+    legacy_cache[self.layer_idx] = new_layer_cache
+    past_key_value = DynamicCache.from_legacy_cache(tuple(legacy_cache))
 
     # Attention output -------------------------------------------------------------------
     attn_output = torch.matmul(attn_weights, value_states)
+
     if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
         raise ValueError(
             f"attn_output should be {(bsz, self.num_heads, q_len, self.head_dim)}, got {attn_output.size()}"

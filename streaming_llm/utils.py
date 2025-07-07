@@ -56,11 +56,12 @@ def load(model_name_or_path):
         model_name_or_path,
         trust_remote_code=True,
     )
+
     model = AutoModelForCausalLM.from_pretrained(
         model_name_or_path,
         attn_implementation="eager",
         device_map="auto",
-        torch_dtype=torch.float16,
+        torch_dtype=torch.bfloat16,
         trust_remote_code=True,
     )
     if tokenizer.pad_token_id is None:
