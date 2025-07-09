@@ -5,11 +5,11 @@ Streaming: True
 Start Size: 4
 Recent Size: 512
 Total Questions: 1
-Correct Answers: 0
-Overall Accuracy: 0.00%
+Correct Answers: 1
+Overall Accuracy: 100.00%
 
 Accuracy by Subject:
-  Prealgebra: 0.00%
+  Prealgebra: 100.00%
 
 Accuracy by Level:
-  Level 2: 0.00%
+  Level 2: 100.00%

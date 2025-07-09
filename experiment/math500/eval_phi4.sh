@@ -24,13 +24,13 @@ echo "Samples: $NUM_SAMPLES"
 echo ""
 
 # Run dense evaluation (no streaming)
-echo "Running dense evaluation..."
-CUDA_VISIBLE_DEVICES=1 nohup python experiment/math500/run_math_evaluation.py \
-    --model_name_or_path $MODEL_PATH \
-    --data_root $DATA_ROOT \
-    --output_dir $OUTPUT_DIR \
-    --num_samples $NUM_SAMPLES \
-    --max_gen_len 4000 > eval_dense_phi4.log 2>&1 &
+# echo "Running dense evaluation..."
+# CUDA_VISIBLE_DEVICES=1 nohup python experiment/math500/run_math_evaluation.py \
+#     --model_name_or_path $MODEL_PATH \
+#     --data_root $DATA_ROOT \
+#     --output_dir $OUTPUT_DIR \
+#     --num_samples $NUM_SAMPLES \
+#     --max_gen_len 4000 > eval_dense_phi4.log 2>&1 &
 
 # echo ""
 
@@ -61,16 +61,16 @@ CUDA_VISIBLE_DEVICES=1 nohup python experiment/math500/run_math_evaluation.py \
 
 # echo ""
 
-# echo "Running streaming evaluation with start_size=4, recent_size=512..."
-# CUDA_VISIBLE_DEVICES=0 nohup python experiment/math500/run_math_evaluation.py \
-#     --model_name_or_path $MODEL_PATH \
-#     --data_root $DATA_ROOT \
-#     --output_dir $OUTPUT_DIR \
-#     --enable_streaming \
-#     --start_size 4 \
-#     --recent_size 512 \
-#     --num_samples $NUM_SAMPLES \
-#     --max_gen_len 8000 > eval_streaming_512_phi4.log 2>&1 &
+echo "Running streaming evaluation with start_size=4, recent_size=512..."
+CUDA_VISIBLE_DEVICES=0 nohup python experiment/math500/run_math_evaluation.py \
+    --model_name_or_path $MODEL_PATH \
+    --data_root $DATA_ROOT \
+    --output_dir $OUTPUT_DIR \
+    --enable_streaming \
+    --start_size 4 \
+    --recent_size 512 \
+    --num_samples $NUM_SAMPLES \
+    --max_gen_len 8000 > eval_streaming_512_phi4.log 2>&1 &
 
 # echo ""
 # echo "All evaluations completed!"

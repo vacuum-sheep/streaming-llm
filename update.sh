@@ -85,7 +85,7 @@ case $VERSION in
             echo "cursor version updated successfully!"
         fi
         ;;
-    "base4")
+    "base6")
         if [ "$REVERSE" = true ]; then
             echo "Reverse updating base4 version..."
             # Copy base4 files to base files
@@ -97,11 +97,11 @@ case $VERSION in
         else
             echo "Updating base4 version..."
             # Copy base files to base1 versions
-            cp streaming_llm/pos_shift/modify_phi4.py streaming_llm/pos_shift/modify_phi4_base4.py
-            cp streaming_llm/utils.py streaming_llm/utils_base4.py
-            cp streaming_llm/kv_cache.py streaming_llm/kv_cache_base4.py
-            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_base4.py
-            echo "base4 version updated successfully!"
+            cp streaming_llm/pos_shift/modify_phi4.py streaming_llm/pos_shift/modify_phi4_base6.py
+            cp streaming_llm/utils.py streaming_llm/utils_base6.py
+            cp streaming_llm/kv_cache.py streaming_llm/kv_cache_base6.py
+            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_base6.py
+            echo "base6 version updated successfully!"
         fi
         ;;
     "base5")
