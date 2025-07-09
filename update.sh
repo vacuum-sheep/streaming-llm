@@ -104,23 +104,23 @@ case $VERSION in
             echo "base6 version updated successfully!"
         fi
         ;;
-    "base5")
+    "base7")
         if [ "$REVERSE" = true ]; then
             echo "Reverse updating base5 version..."
             # Copy base0 files to base files
-            cp streaming_llm/pos_shift/modify_phi4_base5.py streaming_llm/pos_shift/modify_phi4.py
-            cp streaming_llm/utils_base5.py streaming_llm/utils.py
-            cp streaming_llm/kv_cache_base5.py streaming_llm/kv_cache.py
-            cp experiment/math500/run_math_evaluation_base5.py experiment/math500/run_math_evaluation.py
-            echo "Base files updated from base5 version successfully!"
+            cp streaming_llm/pos_shift/modify_phi4_base7.py streaming_llm/pos_shift/modify_phi4.py
+            cp streaming_llm/utils_base7.py streaming_llm/utils.py
+            cp streaming_llm/kv_cache_base7.py streaming_llm/kv_cache.py
+            cp experiment/math500/run_math_evaluation_base7.py experiment/math500/run_math_evaluation.py
+            echo "Base files updated from base7 version successfully!"
         else
             echo "Updating base5 version..."
             # Copy base files to base0 versions
-            cp streaming_llm/pos_shift/modify_phi4.py streaming_llm/pos_shift/modify_phi4_base5.py
-            cp streaming_llm/utils.py streaming_llm/utils_base5.py
-            cp streaming_llm/kv_cache.py streaming_llm/kv_cache_base5.py
-            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_base5.py
-            echo "base5 version updated successfully!"
+            cp streaming_llm/pos_shift/modify_phi4.py streaming_llm/pos_shift/modify_phi4_base7.py
+            cp streaming_llm/utils.py streaming_llm/utils_base7.py
+            cp streaming_llm/kv_cache.py streaming_llm/kv_cache_base7.py
+            cp experiment/math500/run_math_evaluation.py experiment/math500/run_math_evaluation_base7.py
+            echo "base7 version updated successfully!"
         fi
         ;;
     *)
