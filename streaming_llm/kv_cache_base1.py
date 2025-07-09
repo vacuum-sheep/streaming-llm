@@ -1,7 +1,7 @@
 # o3
 
 import torch
-from transformers.cache_utils import DynamicCache, Cache
+
 
 def slice2d(x, start, end):
     return x[:, :, start:end, ...]
@@ -76,10 +76,8 @@ class StartRecentKVCache:
             past_key_values = past_key_values.to_legacy_cache()
         seq_len = past_key_values[0][0].size(self.k_seq_dim)
         if seq_len + num_coming <= self.cache_size:
-            if (isinstance(past_key_values, Cache)):
-                return past_key_values
-            return DynamicCache.from_legacy_cache(past_key_values)
-        new_kv = [
+            return past_key_values
+        return [
             [
                 torch.cat(
                     [
@@ -102,7 +100,6 @@ class StartRecentKVCache:
             ]
             for k, v in past_key_values
         ]
-        return DynamicCache.from_legacy_cache(new_kv)
 
     def evict_range(self, past_key_values, start, end):
         if past_key_values is None:

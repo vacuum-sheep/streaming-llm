@@ -34,6 +34,12 @@ def enable_streaming_llm(model, start_size, recent_size):
         )
 
         enable_qwen2_pos_shift_attention(model)
+    elif "phi3" in model.config.model_type:
+        k_seq_dim = v_seq_dim = 2
+        from streaming_llm.pos_shift.modify_phi4 import (
+            enable_phi4_pos_shift_attention,
+        )
+        enable_phi4_pos_shift_attention(model)
     else:
         raise ValueError(f"got {model.config.model_type}")
     kv_cache = StartRecentKVCache(

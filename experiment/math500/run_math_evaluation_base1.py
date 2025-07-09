@@ -57,7 +57,7 @@ def extract_answer_from_response(response: str) -> str:
     else:
         if use_last_number:
             pattern = r"-?\d*\.?\d+"
-            pred = re.findall(pattern, response)
+            pred = re.findall(pattern, response.replace(",", ""))
             if len(pred) >= 1:
                 pred = pred[-1]
             else:
@@ -277,35 +277,53 @@ def evaluate_math_question(model, tokenizer, question: str, correct_answer: str,
     """
     Evaluate a single math question.
     """
-    messages = [{
-        "role": "user",
-        "content": f"{question}"
-    }]   
-    inputs = tokenizer.apply_chat_template(
-        messages,
-        add_generation_prompt=True,
-        return_dict=True,
-        return_tensors="pt",
-    )
+    # Create the prompt
+    prompt = f"Question: {question}. Please reason step by step, and put your final answer within \\boxed{{}}\n\n"
+    # prompt = f"Question: {question}. Please reason step by step, and put your final answer within \\boxed{{}}\n"
 
-    outputs = model.generate(
-        **inputs.to(model.device),
-        max_new_tokens=4000,
-        temperature=0.8,
-        top_p=0.95,
-        do_sample=True,
-    )
-    response = tokenizer.batch_decode(outputs[:, inputs["input_ids"].shape[-1]:])
-    result = ' '.join(response)
+    
+    # Tokenize the input
+    input_ids = tokenizer(prompt, add_special_tokens=False, return_tensors='pt').input_ids.to(model.device)
+    # Generate response
+    with torch.no_grad():
+        outputs = model(
+            input_ids=input_ids,
+            past_key_values=None,  # Start fresh for each question
+            use_cache=True,
+            output_attentions=True,  # Include attention weights
+        )
+        
+        # Generate tokens
+        generated_ids = []
+        for _ in range(max_gen_len):
+            outputs = model(
+                input_ids=torch.tensor([[generated_ids[-1] if generated_ids else outputs.logits[:, -1, :].argmax(dim=-1).item()]], 
+                                     device=model.device),
+                past_key_values=outputs.past_key_values,
+                use_cache=True,
+            )
+            
+            next_token = outputs.logits[:, -1, :].argmax(dim=-1).item()
+            generated_ids.append(next_token)
+            
+            if next_token == tokenizer.eos_token_id:
+                break
+    
+    for name, m in model.named_modules():
+        if hasattr(m, 'hh_score'):
+            m.hh_score = None
+
+    # Decode the response
+    response = tokenizer.decode(generated_ids, skip_special_tokens=True)
     
     # Extract and normalize answers
-    predicted_answer = extract_answer_from_response(result)
+    predicted_answer = extract_answer_from_response(response)
     normalized_predicted = normalize_answer(predicted_answer)
     normalized_correct = normalize_answer(correct_answer)
     
     # Check if answers match using math_equal
     is_correct = math_equal(normalized_predicted, normalized_correct)
-    
+
     return {
         'question': question,
         'correct_answer': correct_answer,
@@ -313,9 +331,8 @@ def evaluate_math_question(model, tokenizer, question: str, correct_answer: str,
         'normalized_predicted': normalized_predicted,
         'normalized_correct': normalized_correct,
         'is_correct': is_correct,
-        'response': result
+        'response': response
     }
-
 
 def run_math_evaluation(model, tokenizer, data: List[Dict], kv_cache=None, 
                        max_gen_len=512, num_samples=None) -> Dict[str, Any]:

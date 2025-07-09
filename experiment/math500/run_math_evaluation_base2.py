@@ -57,7 +57,7 @@ def extract_answer_from_response(response: str) -> str:
     else:
         if use_last_number:
             pattern = r"-?\d*\.?\d+"
-            pred = re.findall(pattern, response)
+            pred = re.findall(pattern, response.replace(",", ""))
             if len(pred) >= 1:
                 pred = pred[-1]
             else:
@@ -74,9 +74,6 @@ def normalize_answer(answer: str) -> str:
     # Remove extra whitespace and convert to lowercase
     answer = re.sub(r'\s+', ' ', answer.strip()).lower()
     
-    # Remove LaTeX \text{...} commands, keeping the content inside
-    answer = re.sub(r'\\text\{([^}]*)\}', r'\1', answer)
-    
     # Remove common LaTeX commands
     answer = re.sub(r'\\[a-zA-Z]+\{([^}]*)\}', r'\1', answer)
     
@@ -88,15 +85,6 @@ def normalize_answer(answer: str) -> str:
     
     # Remove other LaTeX symbols
     answer = re.sub(r'\\[a-zA-Z]+', '', answer)
-    
-    # Remove units like ^\circ, ^\degree, ^\prime, ^\ast, etc.
-    answer = re.sub(r'\^\\[a-zA-Z]+', '', answer)
-    # Remove units like ^{\circ}, ^{\degree}, etc.
-    answer = re.sub(r'\^\{\\[a-zA-Z]+\}', '', answer)
-    # Remove units like ^o (for degrees written as o)
-    answer = re.sub(r'\^o', '', answer)
-    # Remove units like ^{o}
-    answer = re.sub(r'\^\{o\}', '', answer)
     
     return answer
 
@@ -277,43 +265,62 @@ def evaluate_math_question(model, tokenizer, question: str, correct_answer: str,
     """
     Evaluate a single math question.
     """
-    messages = [{
-        "role": "user",
-        "content": f"{question}"
-    }]   
-    inputs = tokenizer.apply_chat_template(
-        messages,
-        add_generation_prompt=True,
-        return_dict=True,
-        return_tensors="pt",
-    )
-
-    outputs = model.generate(
-        **inputs.to(model.device),
-        max_new_tokens=4000,
-        temperature=0.8,
-        top_p=0.95,
-        do_sample=True,
-    )
-    response = tokenizer.batch_decode(outputs[:, inputs["input_ids"].shape[-1]:])
-    result = ' '.join(response)
+    # Create the prompt
+    prompt = f"<|system|>Your name is Phi, an AI math expert developed by Microsoft.<|end|><|user|>{question}, Please reason step by step, and put your final answer within \\boxed{{}}. <|end|><|assistant|>"
+    
+    # Tokenize the input
+    input_ids = tokenizer(prompt, return_tensors="pt").input_ids
+    input_ids = input_ids.to(model.device)
+    
+    # Generate response
+    with torch.no_grad():
+        outputs = model(
+            input_ids=input_ids,
+            past_key_values=None,  # Start fresh for each question
+            use_cache=True,
+        )
+        past_key_values = outputs.past_key_values
+        
+        # Generate tokens
+        generated_ids = []
+        for _ in range(max_gen_len):
+            outputs = model(
+                input_ids=torch.tensor([[generated_ids[-1] if generated_ids else outputs.logits[:, -1, :].argmax(dim=-1).item()]], 
+                                     device=model.device),
+                past_key_values=past_key_values,
+                use_cache=True,
+            )
+            past_key_values = outputs.past_key_values
+            
+            # Apply KV cache if enabled
+            if kv_cache is not None:
+                past_key_values = kv_cache.evict_for_space(past_key_values, 1)
+            
+            next_token = outputs.logits[:, -1, :].argmax(dim=-1).item()
+            generated_ids.append(next_token)
+            
+            if next_token == tokenizer.eos_token_id:
+                break
+    
+    # Decode the response
+    response = tokenizer.decode(generated_ids, skip_special_tokens=True)
     
     # Extract and normalize answers
-    predicted_answer = extract_answer_from_response(result)
-    normalized_predicted = normalize_answer(predicted_answer)
-    normalized_correct = normalize_answer(correct_answer)
+    predicted_answer = extract_answer_from_response(response)
+    # normalized_predicted = normalize_answer(predicted_answer)
+    # normalized_correct = normalize_answer(correct_answer)
     
     # Check if answers match using math_equal
-    is_correct = math_equal(normalized_predicted, normalized_correct)
+    is_correct = math_equal(predicted_answer, correct_answer)
     
     return {
         'question': question,
         'correct_answer': correct_answer,
         'predicted_answer': predicted_answer,
-        'normalized_predicted': normalized_predicted,
-        'normalized_correct': normalized_correct,
+        # 'normalized_predicted': normalized_predicted,
+        # 'normalized_correct': normalized_correct,
         'is_correct': is_correct,
-        'response': result
+        'response': response
     }
 
 

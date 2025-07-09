@@ -1,0 +1,13 @@
+MATH500 EVALUATION RESULTS
+==================================================
+Model: /home/kaiwen/.cache/huggingface/hub/models--microsoft--Phi-4-mini-reasoning/snapshots/7a8c4e2e81eae20a606d811f475d7dc316dd916a
+Streaming: False
+Total Questions: 1
+Correct Answers: 1
+Overall Accuracy: 100.00%
+
+Accuracy by Subject:
+  Prealgebra: 100.00%
+
+Accuracy by Level:
+  Level 2: 100.00%
